@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "shareenderchest",
-  "version": "2.0.1+1.20.3-1.20.4",
+  "version": "2.0.1+1.20.5-1.21.1",
 
   "name": "ShareEnderChest",
   "description": "Shift + Right-click any enderchest to use it as a Shared Ender Chest",
@@ -38,7 +38,7 @@
   "depends": {
     "fabricloader": ">=0.4.0",
     "fabric-api": "*",
-    "minecraft": ["1.20.3", "1.20.4"],
-    "java": ">=17"
+    "minecraft": ["1.20.5", "1.20.6", "1.21", "1.21.1"],
+    "java": ">=21"
   }
 }

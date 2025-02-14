@@ -11,6 +11,7 @@ import me.glitch.aitecraft.shareenderchest.config.ConfigManager;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.ServerStarted;
@@ -26,7 +27,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.packet.s2c.play.CloseScreenS2CPacket;
 import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.SimpleNamedScreenHandlerFactory;
@@ -51,9 +52,9 @@ public class ShareEnderChest implements ModInitializer, ServerStopping, ServerSt
         if (inventoryFile.exists()) {
             try (FileInputStream inventoryFileInputStream = new FileInputStream(inventoryFile);
                  DataInputStream inventoryFileDataInput = new DataInputStream(inventoryFileInputStream)) {
-                NbtCompound nbt = NbtIo.readCompressed(inventoryFileDataInput, NbtTagSizeTracker.ofUnlimitedBytes());
+                NbtCompound nbt = NbtIo.readCompressed(inventoryFileDataInput, NbtSizeTracker.ofUnlimitedBytes());
                 DefaultedList<ItemStack> inventoryItemStacks = DefaultedList.ofSize(config.inventoryRows * 9, ItemStack.EMPTY);
-                Inventories.readNbt(nbt, inventoryItemStacks);
+                Inventories.readNbt(nbt, inventoryItemStacks, server.getRegistryManager());
                 sharedInventory = new SharedInventory(inventoryItemStacks);
             } catch (Exception e) {
                 System.out.println("[ShareEnderChest] Error while loading inventory: " + e);
@@ -68,7 +69,7 @@ public class ShareEnderChest implements ModInitializer, ServerStopping, ServerSt
         File inventoryFile = getFile(server);
         NbtCompound nbt = new NbtCompound();
         DefaultedList<ItemStack> inventoryItemStacks = DefaultedList.ofSize(config.inventoryRows * 9, ItemStack.EMPTY);
-        Inventories.writeNbt(nbt, sharedInventory.getList(inventoryItemStacks));
+        Inventories.writeNbt(nbt, sharedInventory.getList(inventoryItemStacks), server.getRegistryManager());
         try (FileOutputStream inventoryFileOutputStream = new FileOutputStream(inventoryFile);
              DataOutputStream inventoryFileDataOutput = new DataOutputStream(inventoryFileOutputStream)) {
             inventoryFile.createNewFile();
@@ -133,14 +134,16 @@ public class ShareEnderChest implements ModInitializer, ServerStopping, ServerSt
         ServerLifecycleEvents.SERVER_STOPPING.register(this);
         ServerTickEvents.END_SERVER_TICK.register(this);
 
+        PayloadTypeRegistry.playC2S().register(OpenSharedInventory.PACKET_ID, OpenSharedInventory.PACKET_CODEC);
+
         if (config.openFromInventory) {
             // Packet Receiver
-            ServerPlayNetworking.registerGlobalReceiver(OpenSharedInventory.PACKET_ID, (payload, player, handler, buf, sender) -> {
-                if (player.currentScreenHandler != player.playerScreenHandler) {
-                    player.networkHandler.sendPacket(new CloseScreenS2CPacket(player.currentScreenHandler.syncId));
-                    player.closeHandledScreen();
+            ServerPlayNetworking.registerGlobalReceiver(OpenSharedInventory.PACKET_ID, (payload, context) -> {
+                if (context.player().currentScreenHandler != context.player().playerScreenHandler) {
+                    context.player().networkHandler.sendPacket(new CloseScreenS2CPacket(context.player().currentScreenHandler.syncId));
+                    context.player().closeHandledScreen();
                 }
-                openSharedEnderChest(player);
+                openSharedEnderChest(context.player());
             });
         }
     }
