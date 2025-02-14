@@ -51,7 +51,7 @@ public class ShareEnderChest implements ModInitializer, ServerStopping, ServerSt
         if (inventoryFile.exists()) {
             try (FileInputStream inventoryFileInputStream = new FileInputStream(inventoryFile);
                  DataInputStream inventoryFileDataInput = new DataInputStream(inventoryFileInputStream)) {
-                NbtCompound nbt = NbtIo.readCompressed(inventoryFileDataInput);
+                NbtCompound nbt = NbtIo.readCompressed(inventoryFileDataInput, NbtTagSizeTracker.ofUnlimitedBytes());
                 DefaultedList<ItemStack> inventoryItemStacks = DefaultedList.ofSize(config.inventoryRows * 9, ItemStack.EMPTY);
                 Inventories.readNbt(nbt, inventoryItemStacks);
                 sharedInventory = new SharedInventory(inventoryItemStacks);
